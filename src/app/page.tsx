@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppSettings, DailyLog } from '@/lib/types';
 import {
   fetchDailyLogs,
@@ -17,17 +17,20 @@ import { CycleNavigator } from '@/components/CycleNavigator';
 import { HistoryTable } from '@/components/HistoryTable';
 import { AnalyticsCharts } from '@/components/AnalyticsCharts';
 import { SettingsPanel } from '@/components/SettingsPanel';
+import { ScheduleNotifier } from '@/components/ScheduleNotifier';
+import { WeeklyArtifactsPanel } from '@/components/WeeklyArtifactsPanel';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { Database, PlusCircle } from 'lucide-react';
 
 export default function TrackerDashboard() {
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const todayRef = useRef<HTMLDivElement>(null);
 
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
     id: 1,
-    paying_users: 54,
+    paying_users: 0,
     arpu_usd: 15,
     usd_inr_rate: 95.9,
     leave_bank_total: 28,
@@ -38,6 +41,10 @@ export default function TrackerDashboard() {
   const [isLogModalOpen, setIsLogModalOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [supabaseActive, setSupabaseActive] = useState<boolean>(false);
+
+  useEffect(() => {
+    setSelectedDate(todayStr);
+  }, [todayStr]);
 
   useEffect(() => {
     async function loadData() {
@@ -54,12 +61,18 @@ export default function TrackerDashboard() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (!isLoading) {
+      todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [isLoading]);
+
   const handleUpdateSettings = async (newSettings: Partial<AppSettings>) => {
     const updated = await saveAppSettings(newSettings);
     setSettings(updated);
   };
 
-  const handleSaveLog = async (logData: Partial<DailyLog> & { date: string }) => {
+  const handleSaveLog = useCallback(async (logData: Partial<DailyLog> & { date: string }) => {
     const savedLog = await saveDailyLog(logData);
     setLogs((prev) => {
       const existingIdx = prev.findIndex((l) => l.date === savedLog.date);
@@ -70,7 +83,16 @@ export default function TrackerDashboard() {
       }
       return [savedLog, ...prev];
     });
-  };
+  }, []);
+
+  const handlePromptTask = useCallback(
+    (taskId: string) => {
+      const log = logs.find((l) => l.date === todayStr);
+      const checkboxes = { ...(log?.schedule_checkboxes || {}), [taskId]: true };
+      void handleSaveLog({ date: todayStr, schedule_checkboxes: checkboxes });
+    },
+    [logs, todayStr, handleSaveLog]
+  );
 
   const todayLog = logs.find((l) => l.date === selectedDate) || null;
 
@@ -93,13 +115,11 @@ export default function TrackerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-[#f4f4f5] p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-8 pb-24">
+    <div className="min-h-screen bg-[#09090b] text-[#f4f4f5] p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6 pb-24">
       <div className="flex items-center justify-between text-[11px] font-mono px-3 py-1.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-400">
         <div className="flex items-center gap-2">
           <Database className={`h-3.5 w-3.5 ${supabaseActive ? 'text-emerald-400' : 'text-amber-400'}`} />
-          <span>
-            {supabaseActive ? 'Supabase PostgreSQL' : 'Local cache'} · tracker.alertowls.com
-          </span>
+          <span>{supabaseActive ? 'Supabase PostgreSQL' : 'Local cache'} · tracker.alertowls.com</span>
         </div>
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
       </div>
@@ -111,11 +131,20 @@ export default function TrackerDashboard() {
         onOpenLogModal={() => setIsLogModalOpen(true)}
       />
 
+      <div ref={todayRef} id="today-cockpit" className="space-y-3 scroll-mt-4">
+        <ScheduleNotifier
+          todayLog={logs.find((l) => l.date === todayStr) || null}
+          onOpenLogModal={() => setIsLogModalOpen(true)}
+          onPromptTask={handlePromptTask}
+        />
+        <TodaySchedule todayLog={todayLog} selectedDate={todayStr} onSaveLog={handleSaveLog} />
+      </div>
+
       <PredictiveBanner logs={logs} settings={settings} />
 
-      <AnalyticsCharts logs={logs} settings={settings} />
+      <WeeklyArtifactsPanel />
 
-      <TodaySchedule todayLog={todayLog} selectedDate={selectedDate} onSaveLog={handleSaveLog} />
+      <AnalyticsCharts logs={logs} settings={settings} />
 
       <CycleNavigator
         selectedCycleNum={selectedCycleNum}
@@ -162,7 +191,7 @@ export default function TrackerDashboard() {
       </button>
 
       <footer className="pt-8 pb-4 text-center text-xs text-zinc-500 border-t border-zinc-900">
-        © 2026 Alertowls · Tracker Executive OS · Cycle 1 starts Sep 28, 2026
+        © 2026 Alertowls · Tracker Executive OS
       </footer>
     </div>
   );

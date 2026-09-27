@@ -4,7 +4,9 @@ import React, { useRef } from 'react';
 import { AppSettings, DailyLog } from '@/lib/types';
 import { exportBackup, restoreBackup, BackupPayload } from '@/lib/storage';
 import { TARGET_PAID_USERS } from '@/lib/predictive';
-import { Download, Upload, Settings2 } from 'lucide-react';
+import { fetchWeeklyArtifacts } from '@/lib/artifact-storage';
+import { Download, Upload, Settings2, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 interface SettingsPanelProps {
@@ -16,9 +18,16 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ settings, logs, onUpdateSettings, onRestore }: SettingsPanelProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
-  const handleBackup = () => {
-    const payload = exportBackup(logs, settings);
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
+  };
+
+  const handleBackup = async () => {
+    const artifacts = await fetchWeeklyArtifacts();
+    const payload = { ...exportBackup(logs, settings), artifacts };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -105,7 +114,7 @@ export function SettingsPanel({ settings, logs, onUpdateSettings, onRestore }: S
       <div className="flex flex-wrap gap-3 pt-2">
         <button
           type="button"
-          onClick={handleBackup}
+          onClick={() => void handleBackup()}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold hover:bg-emerald-600/30"
         >
           <Download className="h-4 w-4" />
@@ -130,6 +139,14 @@ export function SettingsPanel({ settings, logs, onUpdateSettings, onRestore }: S
             e.target.value = '';
           }}
         />
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-semibold hover:bg-zinc-700"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
       </div>
     </section>
   );

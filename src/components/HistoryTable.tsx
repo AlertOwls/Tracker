@@ -153,7 +153,7 @@ export function HistoryTable({
             {filteredLogs.length === 0 ? (
               <tr>
                 <td colSpan={10} className="py-8 text-center text-zinc-500 font-mono">
-                  No daily log entries found matching criteria.
+                  No history yet — your first log will appear here after you complete a day.
                 </td>
               </tr>
             ) : (

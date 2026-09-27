@@ -3,7 +3,7 @@ import { DailyLog, AppSettings } from './types';
 
 const INITIAL_SETTINGS: AppSettings = {
   id: 1,
-  paying_users: 54,
+  paying_users: 0,
   arpu_usd: 15,
   usd_inr_rate: 95.9,
   leave_bank_total: 28,
@@ -51,95 +51,17 @@ function toSupabaseRow(log: DailyLog) {
   };
 }
 
-const INITIAL_LOGS: DailyLog[] = [
-  {
-    id: 'demo-1',
-    date: '2026-09-27',
-    weight: 64.5,
-    sleep_hours: 7.5,
-    founder_done: true,
-    founder_minutes: 180,
-    upsc_done: true,
-    upsc_topic: 'Polity: Preamble & Fundamental Rights Architecture',
-    physical_done: true,
-    music_done: true,
-    day_status: 'On-Track',
-    notes: 'Strong Sunday execution. CSAT mock scored 112/200. Prepared 15 boiled eggs.',
-    schedule_checkboxes: { 'sun-1': true, 'sun-2': true, 'sun-3': true, 'sun-4': true, 'sun-5': true },
-  },
-  {
-    id: 'demo-2',
-    date: '2026-09-26',
-    weight: 64.7,
-    sleep_hours: 7.0,
-    founder_done: true,
-    founder_minutes: 240,
-    upsc_done: true,
-    upsc_topic: 'Modern History: Non-Cooperation Movement & Swarajists',
-    physical_done: false,
-    music_done: true,
-    day_status: 'On-Track',
-    notes: 'Alertowls War Room: Shipped new webhook alert integration.',
-    schedule_checkboxes: { 'sat-1': true, 'sat-2': true, 'sat-3': true, 'sat-4': true, 'sat-5': true },
-  },
-  {
-    id: 'demo-3',
-    date: '2026-09-25',
-    weight: 64.8,
-    sleep_hours: 6.8,
-    founder_done: true,
-    founder_minutes: 60,
-    upsc_done: true,
-    upsc_topic: 'Economics: Monetary Policy & Repo Rate Mechanisms',
-    physical_done: false,
-    music_done: false,
-    day_status: 'Recovered',
-    notes: 'WFH sprint completed. Missed badminton due to rain, recovered with evening static reading.',
-    schedule_checkboxes: { 'wfh-1': true, 'wfh-4': true, 'wfh-7': true, 'wfh-8': true },
-  },
-  {
-    id: 'demo-4',
-    date: '2026-09-24',
-    weight: 65.0,
-    sleep_hours: 7.2,
-    founder_done: true,
-    founder_minutes: 60,
-    upsc_done: true,
-    upsc_topic: 'Geography: Indian Climate Systems & Monsoons',
-    physical_done: true,
-    music_done: true,
-    day_status: 'On-Track',
-    notes: 'In-Office day went smoothly. Tiago drive pleasant. Riyaz 45m focused on Raag Bhairav.',
-    schedule_checkboxes: { 'io-1': true, 'io-2': true, 'io-3': true, 'io-6': true, 'io-7': true },
-  },
-  {
-    id: 'demo-5',
-    date: '2026-09-21',
-    weight: 65.4,
-    sleep_hours: 6.5,
-    founder_done: false,
-    founder_minutes: 0,
-    upsc_done: false,
-    upsc_topic: 'Environment: Biodiversity Hotspots',
-    physical_done: false,
-    music_done: false,
-    day_status: 'Leave',
-    notes: 'Family event leave taken.',
-    schedule_checkboxes: {},
-  },
-];
-
-const LOCAL_STORAGE_LOGS_KEY = 'tracker_daily_logs_v2';
+const LOCAL_STORAGE_LOGS_KEY = 'tracker_daily_logs_v3';
 const LOCAL_STORAGE_SETTINGS_KEY = 'tracker_app_settings_v2';
 const LOCAL_STORAGE_BACKUP_KEY = 'tracker_backup_snapshot';
 
 export async function fetchDailyLogs(): Promise<DailyLog[]> {
-  if (typeof window === 'undefined') return INITIAL_LOGS;
+  if (typeof window === 'undefined') return [];
 
   const localData = localStorage.getItem(LOCAL_STORAGE_LOGS_KEY);
   let logs: DailyLog[] = localData
     ? JSON.parse(localData).map((item: Record<string, unknown>) => normalizeLog(item))
-    : INITIAL_LOGS;
+    : [];
 
   if (isSupabaseConfigured()) {
     try {
@@ -148,7 +70,7 @@ export async function fetchDailyLogs(): Promise<DailyLog[]> {
         .select('*')
         .order('date', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         logs = data.map((item) => normalizeLog(item as Record<string, unknown>));
         localStorage.setItem(LOCAL_STORAGE_LOGS_KEY, JSON.stringify(logs));
       }
@@ -164,7 +86,7 @@ export async function saveDailyLog(log: Partial<DailyLog> & { date: string }): P
   const localData = localStorage.getItem(LOCAL_STORAGE_LOGS_KEY);
   let logs: DailyLog[] = localData
     ? JSON.parse(localData).map((item: Record<string, unknown>) => normalizeLog(item))
-    : INITIAL_LOGS;
+    : [];
 
   const existingIndex = logs.findIndex((l) => l.date === log.date);
   let updatedLog: DailyLog;

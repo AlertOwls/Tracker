@@ -46,3 +46,17 @@ export interface CycleInfo {
   endDate: string;
   isCurrent: boolean;
 }
+
+export type ArtifactType = 'note' | 'link' | 'document' | 'other';
+
+export interface WeeklyArtifact {
+  id: string;
+  week_start: string;
+  title: string;
+  artifact_type: ArtifactType;
+  url: string | null;
+  body: string | null;
+  related_schedule_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
